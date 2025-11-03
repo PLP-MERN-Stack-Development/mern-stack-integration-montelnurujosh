@@ -1,5 +1,3 @@
-// Post.js - Mongoose model for blog posts
-
 const mongoose = require('mongoose');
 
 const PostSchema = new mongoose.Schema(
@@ -8,7 +6,7 @@ const PostSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please provide a title'],
       trim: true,
-      maxlength: [100, 'Title cannot be more than 100 characters'],
+      maxlength: [100, 'Title cannot exceed 100 characters'],
     },
     content: {
       type: String,
@@ -25,17 +23,15 @@ const PostSchema = new mongoose.Schema(
     },
     excerpt: {
       type: String,
-      maxlength: [200, 'Excerpt cannot be more than 200 characters'],
+      maxlength: [200, 'Excerpt cannot exceed 200 characters'],
     },
     author: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
+      type: String,
+      default: 'Anonymous', // temporary string for testing
     },
     category: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Category',
-      required: true,
+      type: String,
+      default: 'General', // temporary string
     },
     tags: [String],
     isPublished: {
@@ -48,53 +44,43 @@ const PostSchema = new mongoose.Schema(
     },
     comments: [
       {
-        user: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: 'User',
-        },
-        content: {
-          type: String,
-          required: true,
-        },
-        createdAt: {
-          type: Date,
-          default: Date.now,
-        },
+        user: { type: String, default: 'Guest' },
+        content: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now },
       },
     ],
   },
   { timestamps: true }
 );
 
-// Create slug from title before saving
-PostSchema.pre('save', function (next) {
-  if (!this.isModified('title')) {
-    return next();
+// Auto-generate slug from title
+// Automatically generate slug from title before validation
+PostSchema.pre('validate', function (next) {
+  if (this.title && !this.slug) {
+    this.slug = this.title
+      .toLowerCase()
+      .replace(/[^\w ]+/g, '')
+      .replace(/ +/g, '-');
   }
-  
-  this.slug = this.title
-    .toLowerCase()
-    .replace(/[^\w ]+/g, '')
-    .replace(/ +/g, '-');
-    
   next();
 });
 
-// Virtual for post URL
+
+// Virtual URL
 PostSchema.virtual('url').get(function () {
   return `/posts/${this.slug}`;
 });
 
-// Method to add a comment
-PostSchema.methods.addComment = function (userId, content) {
-  this.comments.push({ user: userId, content });
+// Add comment
+PostSchema.methods.addComment = function (user, content) {
+  this.comments.push({ user, content });
   return this.save();
 };
 
-// Method to increment view count
+// Increment view count
 PostSchema.methods.incrementViewCount = function () {
   this.viewCount += 1;
   return this.save();
 };
 
-module.exports = mongoose.model('Post', PostSchema); 
+module.exports = mongoose.model('Post', PostSchema);
